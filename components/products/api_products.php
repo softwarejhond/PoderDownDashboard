@@ -1,204 +1,190 @@
 <?php
-session_start();
-include(__DIR__ . '/../../conexion.php');
 header('Content-Type: application/json; charset=utf-8');
+include('../../conexion.php');
 
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
-    echo json_encode(['success' => false, 'message' => 'No autorizado']);
-    exit;
+$action = isset($_REQUEST['action']) ? $_REQUEST['action'] : 'get';
+
+/* -------------------------------------------------------
+ * Genera un slug a partir de un texto (soporte UTF-8)
+ * ------------------------------------------------------- */
+function slugify(string $str): string {
+    $from = ['á','é','í','ó','ú','ü','ñ','Á','É','Í','Ó','Ú','Ü','Ñ',
+             'à','â','ä','è','ê','ë','î','ï','ô','ù','û','ü','ÿ','ç'];
+    $to   = ['a','e','i','o','u','u','n','a','e','i','o','u','u','n',
+             'a','a','a','e','e','e','i','i','o','u','u','u','y','c'];
+    $str  = str_replace($from, $to, mb_strtolower(trim($str), 'UTF-8'));
+    $str  = preg_replace('/[^a-z0-9\s-]/', '', $str);
+    return preg_replace('/[\s-]+/', '-', $str);
 }
 
-$action = $_POST['action'] ?? $_GET['action'] ?? 'get';
-
-/* ─── Genera numero de serie unico de 6 digitos ────────────────────── */
-function generarSerieUnico($conn): string
-{
-    do {
-        $serie = str_pad(mt_rand(0, 999999), 6, '0', STR_PAD_LEFT);
-        $check = mysqli_fetch_assoc(mysqli_query($conn,
-            "SELECT id FROM productos WHERE numero_serie = '$serie'"));
-    } while ($check !== null);
-    return $serie;
+/* -------------------------------------------------------
+ * Devuelve un slug único comprobando duplicados en BD
+ * ------------------------------------------------------- */
+function uniqueSlug($conn, string $table, string $slug, ?int $excludeId = null): string {
+    $base = $slug;
+    $i    = 1;
+    while (true) {
+        $s  = mysqli_real_escape_string($conn, $slug);
+        $ex = $excludeId ? ' AND id != ' . $excludeId : '';
+        $r  = mysqli_query($conn, "SELECT id FROM `$table` WHERE slug='$s'$ex LIMIT 1");
+        if (mysqli_num_rows($r) === 0) break;
+        $slug = $base . '-' . $i++;
+    }
+    return $slug;
 }
 
-/* ─── Utilidad: mover imagen subida ──────────────────────────────────── */
-function handleImageUpload($field = 'imagen'): string
-{
-    if (!isset($_FILES[$field]) || $_FILES[$field]['error'] !== UPLOAD_ERR_OK) {
-        return '';
-    }
-    $allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    $finfo   = finfo_open(FILEINFO_MIME_TYPE);
-    $mime    = finfo_file($finfo, $_FILES[$field]['tmp_name']);
-    finfo_close($finfo);
-
-    if (!in_array($mime, $allowed)) {
-        return '';
-    }
-
-    $ext      = pathinfo($_FILES[$field]['name'], PATHINFO_EXTENSION);
-    $filename = uniqid('prod_', true) . '.' . strtolower($ext);
-    $destDir  = __DIR__ . '/../../uploads/products/';
-    $destPath = $destDir . $filename;
-
-    if (move_uploaded_file($_FILES[$field]['tmp_name'], $destPath)) {
-        return 'uploads/products/' . $filename;
-    }
-    return '';
+/* -------------------------------------------------------
+ * Convierte cadena vacía en NULL para campos opcionales
+ * ------------------------------------------------------- */
+function nullOrFloat($val): string {
+    return (isset($val) && $val !== '') ? (float)$val : 'NULL';
+}
+function nullOrInt($val): string {
+    return (isset($val) && $val !== '') ? (int)$val : 'NULL';
 }
 
 switch ($action) {
 
+    /* ===================================================
+     * LISTAR productos con nombre de categoría
+     * =================================================== */
     case 'get':
-        $where = [];
-        if (!empty($_GET['categoria'])) {
-            $cat = mysqli_real_escape_string($conn, $_GET['categoria']);
-            $where[] = "categoria='$cat'";
-        }
-        if (!empty($_GET['estado']) && in_array($_GET['estado'], ['activo','inactivo'])) {
-            $where[] = "estado='{$_GET['estado']}'";
-        }
-        if (isset($_GET['destacado']) && $_GET['destacado'] !== '') {
-            $where[] = 'destacado=' . intval($_GET['destacado']);
-        }
-        $whereStr = $where ? 'WHERE ' . implode(' AND ', $where) : '';
-        $result = mysqli_query($conn, "SELECT * FROM productos $whereStr ORDER BY fecha_creacion DESC");
-        $data   = [];
-        while ($row = mysqli_fetch_assoc($result)) {
+        $sql = "SELECT p.*, c.name AS category_name
+                FROM products p
+                LEFT JOIN categories c ON c.id = p.category_id
+                ORDER BY p.created_at DESC";
+        $res  = mysqli_query($conn, $sql);
+        $data = [];
+        while ($row = mysqli_fetch_assoc($res)) {
             $data[] = $row;
         }
-        echo json_encode(['success' => true, 'data' => $data]);
+        echo json_encode(['success' => true, 'data' => $data], JSON_UNESCAPED_UNICODE);
         break;
 
+    /* ===================================================
+     * CREAR nuevo producto
+     * =================================================== */
     case 'create':
-        $nombre        = trim($_POST['nombre'] ?? '');
-        $descripcion   = trim($_POST['descripcion'] ?? '');
-        $precio        = floatval($_POST['precio'] ?? 0);
-        $precio_oferta = !empty($_POST['precio_oferta']) ? floatval($_POST['precio_oferta']) : null;
-        $stock         = intval($_POST['stock'] ?? 0);
-        $stock_minimo  = intval($_POST['stock_minimo'] ?? 5);
-        $categoria     = trim($_POST['categoria'] ?? '');
-        $estado        = in_array($_POST['estado'] ?? '', ['activo', 'inactivo']) ? $_POST['estado'] : 'activo';
-        $destacado     = !empty($_POST['destacado']) ? 1 : 0;
-        $imagen        = handleImageUpload('imagen');
+        $sku       = trim($_POST['sku'] ?? '');
+        $name      = trim($_POST['name'] ?? '');
+        $desc      = trim($_POST['description'] ?? '');
+        $shortDesc = trim($_POST['short_description'] ?? '');
+        $catId     = nullOrInt($_POST['category_id'] ?? '');
+        $tags      = trim($_POST['tags'] ?? '');
+        $price     = (float)($_POST['price'] ?? 0);
+        $compPrice = nullOrFloat($_POST['compare_price'] ?? '');
+        $costPrice = nullOrFloat($_POST['cost_price'] ?? '');
+        $stock     = (int)($_POST['stock'] ?? 0);
+        $lowStock  = nullOrInt($_POST['low_stock_threshold'] ?? '');
+        $isActive  = (int)($_POST['is_active'] ?? 1);
+        $isFeat    = (int)($_POST['is_featured'] ?? 0) ? 1 : 0;
+        $isDig     = (int)($_POST['is_digital'] ?? 0) ? 1 : 0;
 
-        if (empty($nombre)) {
-            echo json_encode(['success' => false, 'message' => 'El nombre es requerido']);
+        if ($sku === '' || $name === '') {
+            echo json_encode(['success' => false, 'message' => 'El SKU y el nombre son obligatorios'], JSON_UNESCAPED_UNICODE);
             break;
         }
 
-        $numero_serie    = generarSerieUnico($conn);
-        $nombre_esc      = mysqli_real_escape_string($conn, $nombre);
-        $descripcion_esc = mysqli_real_escape_string($conn, $descripcion);
-        $categoria_esc   = mysqli_real_escape_string($conn, $categoria);
-        $imagen_esc      = mysqli_real_escape_string($conn, $imagen);
-        $po_sql          = $precio_oferta !== null ? $precio_oferta : 'NULL';
+        // Unicidad del SKU
+        $skuE     = mysqli_real_escape_string($conn, $sku);
+        $skuCheck = mysqli_query($conn, "SELECT id FROM products WHERE sku='$skuE' LIMIT 1");
+        if (mysqli_num_rows($skuCheck) > 0) {
+            echo json_encode(['success' => false, 'message' => "El SKU «$sku» ya está en uso"], JSON_UNESCAPED_UNICODE);
+            break;
+        }
 
-        $sql = "INSERT INTO productos (numero_serie, nombre, descripcion, precio, precio_oferta, stock, stock_minimo, imagen, categoria, estado, destacado)
-                VALUES ('$numero_serie', '$nombre_esc', '$descripcion_esc', $precio, $po_sql, $stock, $stock_minimo, '$imagen_esc', '$categoria_esc', '$estado', $destacado)";
+        $slug = uniqueSlug($conn, 'products', slugify($name));
+        $n    = mysqli_real_escape_string($conn, $name);
+        $sl   = mysqli_real_escape_string($conn, $slug);
+        $d    = mysqli_real_escape_string($conn, $desc);
+        $sd   = mysqli_real_escape_string($conn, $shortDesc);
+        $tg   = mysqli_real_escape_string($conn, $tags);
+
+        $sql = "INSERT INTO products
+                    (sku, name, slug, description, short_description, category_id, tags,
+                     price, compare_price, cost_price, stock, low_stock_threshold,
+                     is_active, is_featured, is_digital)
+                VALUES
+                    ('$skuE','$n','$sl','$d','$sd',$catId,'$tg',
+                     $price,$compPrice,$costPrice,$stock,$lowStock,
+                     $isActive,$isFeat,$isDig)";
 
         if (mysqli_query($conn, $sql)) {
-            echo json_encode(['success' => true, 'message' => 'Producto creado', 'id' => mysqli_insert_id($conn), 'numero_serie' => $numero_serie]);
+            echo json_encode(['success' => true, 'message' => 'Producto creado correctamente'], JSON_UNESCAPED_UNICODE);
         } else {
-            echo json_encode(['success' => false, 'message' => mysqli_error($conn)]);
+            echo json_encode(['success' => false, 'message' => 'Error al crear: ' . mysqli_error($conn)], JSON_UNESCAPED_UNICODE);
         }
         break;
 
+    /* ===================================================
+     * ACTUALIZAR producto existente
+     * =================================================== */
     case 'update':
-        $id            = intval($_POST['id'] ?? 0);
-        $nombre        = trim($_POST['nombre'] ?? '');
-        $descripcion   = trim($_POST['descripcion'] ?? '');
-        $precio        = floatval($_POST['precio'] ?? 0);
-        $precio_oferta = !empty($_POST['precio_oferta']) ? floatval($_POST['precio_oferta']) : null;
-        $stock         = intval($_POST['stock'] ?? 0);
-        $stock_minimo  = intval($_POST['stock_minimo'] ?? 5);
-        $categoria     = trim($_POST['categoria'] ?? '');
-        $estado        = in_array($_POST['estado'] ?? '', ['activo', 'inactivo']) ? $_POST['estado'] : 'activo';
-        $destacado     = !empty($_POST['destacado']) ? 1 : 0;
-        $imagen_nueva  = handleImageUpload('imagen');
+        $id        = (int)($_POST['id'] ?? 0);
+        $sku       = trim($_POST['sku'] ?? '');
+        $name      = trim($_POST['name'] ?? '');
+        $desc      = trim($_POST['description'] ?? '');
+        $shortDesc = trim($_POST['short_description'] ?? '');
+        $catId     = nullOrInt($_POST['category_id'] ?? '');
+        $tags      = trim($_POST['tags'] ?? '');
+        $price     = (float)($_POST['price'] ?? 0);
+        $compPrice = nullOrFloat($_POST['compare_price'] ?? '');
+        $costPrice = nullOrFloat($_POST['cost_price'] ?? '');
+        $stock     = (int)($_POST['stock'] ?? 0);
+        $lowStock  = nullOrInt($_POST['low_stock_threshold'] ?? '');
+        $isActive  = (int)($_POST['is_active'] ?? 1);
+        $isFeat    = (int)($_POST['is_featured'] ?? 0) ? 1 : 0;
+        $isDig     = (int)($_POST['is_digital'] ?? 0) ? 1 : 0;
 
-        if ($id <= 0 || empty($nombre)) {
-            echo json_encode(['success' => false, 'message' => 'Datos invalidos']);
+        if (!$id || $sku === '' || $name === '') {
+            echo json_encode(['success' => false, 'message' => 'Datos inválidos'], JSON_UNESCAPED_UNICODE);
             break;
         }
 
-        $nombre_esc      = mysqli_real_escape_string($conn, $nombre);
-        $descripcion_esc = mysqli_real_escape_string($conn, $descripcion);
-        $categoria_esc   = mysqli_real_escape_string($conn, $categoria);
-        $po_sql          = $precio_oferta !== null ? $precio_oferta : 'NULL';
-
-        if ($imagen_nueva !== '') {
-            $old = mysqli_fetch_assoc(mysqli_query($conn, "SELECT imagen FROM productos WHERE id=$id"));
-            if ($old && $old['imagen'] && file_exists(__DIR__ . '/../../' . $old['imagen'])) {
-                @unlink(__DIR__ . '/../../' . $old['imagen']);
-            }
-            $imagen_esc = mysqli_real_escape_string($conn, $imagen_nueva);
-            $img_sql    = ", imagen='$imagen_esc'";
-        } else {
-            $img_sql = '';
+        // Unicidad del SKU (excluyendo el producto actual)
+        $skuE     = mysqli_real_escape_string($conn, $sku);
+        $skuCheck = mysqli_query($conn, "SELECT id FROM products WHERE sku='$skuE' AND id != $id LIMIT 1");
+        if (mysqli_num_rows($skuCheck) > 0) {
+            echo json_encode(['success' => false, 'message' => "El SKU «$sku» ya está en uso por otro producto"], JSON_UNESCAPED_UNICODE);
+            break;
         }
 
-        $sql = "UPDATE productos
-                SET nombre='$nombre_esc', descripcion='$descripcion_esc',
-                    precio=$precio, precio_oferta=$po_sql, stock=$stock,
-                    stock_minimo=$stock_minimo, categoria='$categoria_esc',
-                    estado='$estado', destacado=$destacado $img_sql
+        $n  = mysqli_real_escape_string($conn, $name);
+        $d  = mysqli_real_escape_string($conn, $desc);
+        $sd = mysqli_real_escape_string($conn, $shortDesc);
+        $tg = mysqli_real_escape_string($conn, $tags);
+
+        $sql = "UPDATE products SET
+                    sku='$skuE', name='$n', description='$d', short_description='$sd',
+                    category_id=$catId, tags='$tg',
+                    price=$price, compare_price=$compPrice, cost_price=$costPrice,
+                    stock=$stock, low_stock_threshold=$lowStock,
+                    is_active=$isActive, is_featured=$isFeat, is_digital=$isDig
                 WHERE id=$id";
 
         if (mysqli_query($conn, $sql)) {
-            echo json_encode(['success' => true, 'message' => 'Producto actualizado']);
+            echo json_encode(['success' => true, 'message' => 'Producto actualizado correctamente'], JSON_UNESCAPED_UNICODE);
         } else {
-            echo json_encode(['success' => false, 'message' => mysqli_error($conn)]);
+            echo json_encode(['success' => false, 'message' => 'Error al actualizar: ' . mysqli_error($conn)], JSON_UNESCAPED_UNICODE);
         }
         break;
 
+    /* ===================================================
+     * ELIMINAR producto
+     * =================================================== */
     case 'delete':
-        $id = intval($_POST['id'] ?? 0);
-        if ($id <= 0) {
-            echo json_encode(['success' => false, 'message' => 'ID inválido']);
+        $id = (int)($_POST['id'] ?? 0);
+        if (!$id) {
+            echo json_encode(['success' => false, 'message' => 'ID inválido'], JSON_UNESCAPED_UNICODE);
             break;
         }
-        // Eliminar imagen física si existe
-        $old = mysqli_fetch_assoc(mysqli_query($conn, "SELECT imagen FROM productos WHERE id=$id"));
-        if ($old && $old['imagen'] && file_exists(__DIR__ . '/../../' . $old['imagen'])) {
-            @unlink(__DIR__ . '/../../' . $old['imagen']);
-        }
-        if (mysqli_query($conn, "DELETE FROM productos WHERE id=$id")) {
-            echo json_encode(['success' => true, 'message' => 'Producto eliminado']);
+        if (mysqli_query($conn, "DELETE FROM products WHERE id=$id")) {
+            echo json_encode(['success' => true, 'message' => 'Producto eliminado correctamente'], JSON_UNESCAPED_UNICODE);
         } else {
-            echo json_encode(['success' => false, 'message' => mysqli_error($conn)]);
+            echo json_encode(['success' => false, 'message' => 'Error al eliminar: ' . mysqli_error($conn)], JSON_UNESCAPED_UNICODE);
         }
-        break;
-
-    case 'duplicate':
-        $id = intval($_POST['id'] ?? 0);
-        if ($id <= 0) { echo json_encode(['success'=>false,'message'=>'ID invalido']); break; }
-        $orig = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM productos WHERE id=$id"));
-        if (!$orig) { echo json_encode(['success'=>false,'message'=>'Producto no encontrado']); break; }
-        $serie  = generarSerieUnico($conn);
-        $nombre = mysqli_real_escape_string($conn, $orig['nombre'] . ' (Copia)');
-        $desc   = mysqli_real_escape_string($conn, $orig['descripcion'] ?? '');
-        $cat    = mysqli_real_escape_string($conn, $orig['categoria'] ?? '');
-        $po     = $orig['precio_oferta'] !== null ? floatval($orig['precio_oferta']) : 'NULL';
-        $sql    = "INSERT INTO productos (numero_serie, nombre, descripcion, precio, precio_oferta, stock, stock_minimo, categoria, estado, destacado)
-                   VALUES ('$serie', '$nombre', '$desc', {$orig['precio']}, $po, 0, {$orig['stock_minimo']}, '$cat', 'inactivo', 0)";
-        if (mysqli_query($conn, $sql)) {
-            echo json_encode(['success'=>true,'message'=>'Producto duplicado','numero_serie'=>$serie,'id'=>mysqli_insert_id($conn)]);
-        } else {
-            echo json_encode(['success'=>false,'message'=>mysqli_error($conn)]);
-        }
-        break;
-
-    case 'toggle_destacado':
-        $id  = intval($_POST['id'] ?? 0);
-        $val = intval($_POST['destacado'] ?? 0);
-        if ($id <= 0) { echo json_encode(['success'=>false,'message'=>'ID invalido']); break; }
-        mysqli_query($conn, "UPDATE productos SET destacado=$val WHERE id=$id");
-        echo json_encode(['success'=>true]);
         break;
 
     default:
-        echo json_encode(['success' => false, 'message' => 'Accion no reconocida']);
+        echo json_encode(['success' => false, 'message' => 'Acción no reconocida'], JSON_UNESCAPED_UNICODE);
 }
-
-mysqli_close($conn);
