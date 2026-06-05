@@ -1,6 +1,6 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
-include('../../conexion.php');
+require_once __DIR__ . '/../../conexion.php';
 
 $action = isset($_REQUEST['action']) ? $_REQUEST['action'] : 'get';
 
@@ -49,7 +49,10 @@ switch ($action) {
      * LISTAR productos con nombre de categoría
      * =================================================== */
     case 'get':
-        $sql = "SELECT p.*, c.name AS category_name
+        $sql = "SELECT p.*,
+                    c.name AS category_name,
+                    (SELECT COUNT(*) FROM product_images pi WHERE pi.product_id = p.id) AS image_count,
+                    (SELECT pi2.image_path FROM product_images pi2 WHERE pi2.product_id = p.id AND pi2.is_primary = 1 LIMIT 1) AS primary_image
                 FROM products p
                 LEFT JOIN categories c ON c.id = p.category_id
                 ORDER BY p.created_at DESC";
@@ -89,7 +92,7 @@ switch ($action) {
         $skuE     = mysqli_real_escape_string($conn, $sku);
         $skuCheck = mysqli_query($conn, "SELECT id FROM products WHERE sku='$skuE' LIMIT 1");
         if (mysqli_num_rows($skuCheck) > 0) {
-            echo json_encode(['success' => false, 'message' => "El SKU «$sku» ya está en uso"], JSON_UNESCAPED_UNICODE);
+            echo json_encode(['success' => false, 'message' => "El SKU « $sku » ya está en uso"], JSON_UNESCAPED_UNICODE);
             break;
         }
 
@@ -110,7 +113,11 @@ switch ($action) {
                      $isActive,$isFeat,$isDig)";
 
         if (mysqli_query($conn, $sql)) {
-            echo json_encode(['success' => true, 'message' => 'Producto creado correctamente'], JSON_UNESCAPED_UNICODE);
+            echo json_encode([
+                'success'    => true,
+                'message'    => 'Producto creado correctamente',
+                'product_id' => mysqli_insert_id($conn),
+            ], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode(['success' => false, 'message' => 'Error al crear: ' . mysqli_error($conn)], JSON_UNESCAPED_UNICODE);
         }
@@ -145,7 +152,7 @@ switch ($action) {
         $skuE     = mysqli_real_escape_string($conn, $sku);
         $skuCheck = mysqli_query($conn, "SELECT id FROM products WHERE sku='$skuE' AND id != $id LIMIT 1");
         if (mysqli_num_rows($skuCheck) > 0) {
-            echo json_encode(['success' => false, 'message' => "El SKU «$sku» ya está en uso por otro producto"], JSON_UNESCAPED_UNICODE);
+            echo json_encode(['success' => false, 'message' => "El SKU « $sku » ya está en uso por otro producto"], JSON_UNESCAPED_UNICODE);
             break;
         }
 
@@ -182,6 +189,26 @@ switch ($action) {
             echo json_encode(['success' => true, 'message' => 'Producto eliminado correctamente'], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode(['success' => false, 'message' => 'Error al eliminar: ' . mysqli_error($conn)], JSON_UNESCAPED_UNICODE);
+        }
+        break;
+
+    /* ===================================================
+     * GENERAR SKU único
+     * =================================================== */
+    case 'generate_sku':
+        $attempts = 0;
+        do {
+            $num = rand(1000, 9999);
+            $sku = 'PROD-' . $num;
+            $skuE = mysqli_real_escape_string($conn, $sku);
+            $check = mysqli_query($conn, "SELECT id FROM products WHERE sku='$skuE' LIMIT 1");
+            $attempts++;
+        } while (mysqli_num_rows($check) > 0 && $attempts < 100);
+
+        if ($attempts >= 100) {
+            echo json_encode(['success' => false, 'message' => 'No se pudo generar un SKU único'], JSON_UNESCAPED_UNICODE);
+        } else {
+            echo json_encode(['success' => true, 'sku' => $sku], JSON_UNESCAPED_UNICODE);
         }
         break;
 

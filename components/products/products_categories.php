@@ -34,7 +34,7 @@
                     <i class="bi bi-info-circle me-1"></i>
                     Gestione las categorías del catálogo de productos.
                 </span>
-                <button class="btn btn-primary btn-sm" onclick="modalAgregarCategoria()">
+                <button class="btn bg-indigo-dark text-white btn-sm" onclick="modalAgregarCategoria()">
                     <i class="bi bi-plus-circle me-1"></i> Nueva Categoría
                 </button>
             </div>
@@ -68,7 +68,7 @@
                     <i class="bi bi-info-circle me-1"></i>
                     Gestione el catálogo de productos de la tienda.
                 </span>
-                <button class="btn btn-success btn-sm" onclick="modalAgregarProducto()">
+                <button class="btn bg-magenta-dark text-white btn-sm" onclick="modalAgregarProducto()">
                     <i class="bi bi-plus-circle me-1"></i> Nuevo Producto
                 </button>
             </div>
@@ -80,12 +80,13 @@
                             <th style="width:90px">SKU</th>
                             <th class="text-start">Nombre</th>
                             <th style="width:130px">Categoría</th>
-                            <th style="width:110px">Precio</th>
-                            <th style="width:140px">P. Comparación</th>
-                            <th style="width:90px">Stock</th>
-                            <th style="width:90px">Estado</th>
-                            <th style="width:90px">Destacado</th>
-                            <th style="width:100px">Acciones</th>
+                            <th class="text-start" style="width:110px">Precio</th>
+                            <th class="text-start" style="width:140px">P. Comparación</th>
+                            <th class="text-start" style="width:90px">Stock</th>
+                            <th class="text-start" style="width:90px">Estado</th>
+                            <th class="text-start" style="width:90px">Destacado</th>
+                            <th style="width:80px">Fotos</th>
+                            <th class="text-start" style="width:100px">Acciones</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -95,6 +96,39 @@
 
     </div><!-- /tab-content -->
 </div><!-- /container-fluid -->
+
+<!-- ================================================================
+     ESTILOS PERSONALIZADOS
+================================================================ -->
+<style>
+/* Navtabs - Botones inactivos */
+#prodCatTabs .nav-link {
+    color: #000 !important;
+    transition: color 0.3s ease;
+}
+
+/* Navtabs - Botones activos */
+#prodCatTabs .nav-link.active {
+    color: #30336b !important;
+    border-bottom-color: #30336b !important;
+}
+
+.prod-price-label {
+    min-height: 48px;
+    display: flex;
+    align-items: flex-end;
+}
+
+.prod-price-label-stack {
+    display: inline-flex;
+    flex-direction: column;
+    line-height: 1.1;
+}
+
+.prod-price-label-stack small {
+    margin-top: 2px;
+}
+</style>
 
 <!-- ================================================================
      JAVASCRIPT
@@ -188,10 +222,10 @@ function cargarCategorias() {
                         className: 'text-center',
                         orderable: false,
                         render: (d, t, row) =>
-                            `<button class="btn btn-outline-primary btn-sm me-1" title="Editar" onclick="modalEditarCategoria(${row.id})">
+                            `<button class="btn bg-indigo-dark text-white btn-sm me-1" title="Editar" onclick="modalEditarCategoria(${row.id})">
                                 <i class="bi bi-pencil-fill"></i>
                              </button>
-                             <button class="btn btn-outline-danger btn-sm" title="Eliminar" onclick="confirmarEliminarCategoria(${row.id},'${escHtml(row.name)}')">
+                             <button class="btn btn-danger text-white btn-sm" title="Eliminar" onclick="confirmarEliminarCategoria(${row.id},'${escHtml(row.name)}')">
                                 <i class="bi bi-trash-fill"></i>
                              </button>`
                     }
@@ -384,7 +418,7 @@ function cargarProductos() {
                 columns: [
                     {
                         data: 'sku',
-                        render: d => `<code class="text-primary small">${escHtml(d)}</code>`
+                        render: d => `<code class="text-teal-dark text-center d-block">${escHtml(d)}</code>`
                     },
                     {
                         data: 'name',
@@ -398,17 +432,17 @@ function cargarProductos() {
                         data: 'category_name',
                         className: 'text-center',
                         render: d => d
-                            ? `<span class="badge bg-info text-dark">${escHtml(d)}</span>`
+                            ? `<span class="badge bg-purple-light text-dark">${escHtml(d)}</span>`
                             : '<span class="text-muted small">—</span>'
                     },
                     {
                         data: 'price',
-                        className: 'text-end',
+                        className: 'text-center',
                         render: d => `<span class="text-success fw-semibold">${formatPrice(d)}</span>`
                     },
                     {
                         data: 'compare_price',
-                        className: 'text-end',
+                        className: 'text-center',
                         render: (d, t, row) => {
                             if (!d || parseFloat(d) === 0) return '<span class="text-muted">—</span>';
                             const base = parseFloat(row.price);
@@ -447,11 +481,26 @@ function cargarProductos() {
                         data: null,
                         className: 'text-center',
                         orderable: false,
+                        render: (d, t, row) => {
+                            const cnt   = row.image_count || 0;
+                            const thumb = row.primary_image
+                                ? `<img src="${row.primary_image}" style="width:26px;height:26px;object-fit:cover;border-radius:4px;border:1px solid #dee2e6" alt="">`
+                                : '<i class="bi bi-image text-muted"></i>';
+                            return `<a href="fotos_producto.php?id=${row.id}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1" title="Ver/subir imágenes">
+                                        ${thumb}
+                                        <span class="badge bg-secondary">${cnt}</span>
+                                    </a>`;
+                        }
+                    },
+                    {
+                        data: null,
+                        className: 'text-center',
+                        orderable: false,
                         render: (d, t, row) =>
-                            `<button class="btn btn-outline-warning btn-sm me-1" title="Editar" onclick="modalEditarProducto(${row.id})">
+                            `<button class="btn bg-magenta-dark text-white btn-sm me-1" title="Editar" onclick="modalEditarProducto(${row.id})">
                                 <i class="bi bi-pencil-fill"></i>
                              </button>
-                             <button class="btn btn-outline-danger btn-sm" title="Eliminar" onclick="confirmarEliminarProducto(${row.id},'${escHtml(row.name)}')">
+                             <button class="btn btn-danger text-white btn-sm" title="Eliminar" onclick="confirmarEliminarProducto(${row.id},'${escHtml(row.name)}')">
                                 <i class="bi bi-trash-fill"></i>
                              </button>`
                     }
@@ -465,7 +514,7 @@ function cargarProductos() {
 }
 
 /* ---- HTML del formulario de producto ---- */
-function htmlFormProducto(data) {
+function htmlFormProducto(data, isNew = false) {
     const d = data || {};
     const catsOpts = categoriasLista
         .map(c => `<option value="${c.id}" ${d.category_id == c.id ? 'selected' : ''}>${escHtml(c.name)}</option>`)
@@ -476,9 +525,12 @@ function htmlFormProducto(data) {
 
             <div class="row g-2">
                 <div class="col-md-4">
-                    <label class="form-label fw-semibold">SKU <span class="text-danger">*</span></label>
-                    <input id="prodSku" class="form-control form-control-sm"
-                           placeholder="Ej: PROD-001" value="${escHtml(d.sku || '')}">
+                    <label class="form-label fw-semibold">SKU <span class="text-danger">*</span>
+                        ${isNew ? '<span class="text-muted fw-normal small ms-1">(auto-generado)</span>' : ''}
+                    </label>
+                    <input id="prodSku" class="form-control form-control-sm${isNew ? ' bg-light text-muted' : ''}"
+                           placeholder="Ej: PROD-001" value="${escHtml(d.sku || '')}"
+                           ${isNew ? 'readonly' : ''}>
                 </div>
                 <div class="col-md-8">
                     <label class="form-label fw-semibold">Nombre <span class="text-danger">*</span></label>
@@ -519,7 +571,7 @@ function htmlFormProducto(data) {
             <p class="fw-semibold mb-1 text-muted small text-uppercase">Precios</p>
             <div class="row g-2">
                 <div class="col-md-4">
-                    <label class="form-label fw-semibold">Precio <span class="text-danger">*</span></label>
+                    <label class="form-label fw-semibold prod-price-label">Precio <span class="text-danger">*</span></label>
                     <div class="input-group input-group-sm">
                         <span class="input-group-text">$</span>
                         <input id="prodPrice" type="number" step="0.01" min="0"
@@ -528,7 +580,12 @@ function htmlFormProducto(data) {
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label fw-semibold">Precio comparación <small class="text-muted">(tachado)</small></label>
+                    <label class="form-label fw-semibold prod-price-label">
+                        <span class="prod-price-label-stack">
+                            <span>Precio comparación</span>
+                            <small class="text-muted">(tachado)</small>
+                        </span>
+                    </label>
                     <div class="input-group input-group-sm">
                         <span class="input-group-text">$</span>
                         <input id="prodComparePrice" type="number" step="0.01" min="0"
@@ -537,7 +594,7 @@ function htmlFormProducto(data) {
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label fw-semibold">Costo interno</label>
+                    <label class="form-label fw-semibold prod-price-label">Costo interno</label>
                     <div class="input-group input-group-sm">
                         <span class="input-group-text">$</span>
                         <input id="prodCostPrice" type="number" step="0.01" min="0"
@@ -622,28 +679,53 @@ function getProdFormValues() {
 
 /* ---- Modal: Agregar producto ---- */
 function modalAgregarProducto() {
-    Swal.fire({
-        title: '<i class="bi bi-box-seam-fill text-success me-2"></i>Nuevo Producto',
-        width: 720,
-        html: htmlFormProducto(),
-        showCancelButton: true,
-        confirmButtonText: '<i class="bi bi-save me-1"></i> Guardar',
-        cancelButtonText:  'Cancelar',
-        confirmButtonColor: '#198754',
-        preConfirm: getProdFormValues
-    }).then(result => {
-        if (!result.isConfirmed) return;
-        $.post('components/products/api_products.php', { action: 'create', ...result.value }, null, 'json')
-            .done(resp => {
-                if (resp.success) {
-                    Swal.fire({ icon: 'success', title: '¡Guardado!', text: resp.message, timer: 1800, showConfirmButton: false });
-                    cargarProductos();
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: resp.message });
-                }
-            })
-            .fail(() => Swal.fire({ icon: 'error', title: 'Error', text: 'Error de comunicación con el servidor.' }));
-    });
+    $.get('components/products/api_products.php', { action: 'generate_sku' }, null, 'json')
+        .done(function (resp) {
+            if (!resp.success) {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo generar el SKU. Intenta de nuevo.' });
+                return;
+            }
+            Swal.fire({
+                title: '<i class="bi bi-box-seam-fill text-success me-2"></i>Nuevo Producto',
+                width: 820,
+                html: htmlFormProducto({ sku: resp.sku }, true),
+                showCancelButton: true,
+                confirmButtonText: '<i class="bi bi-save me-1"></i> Guardar',
+                cancelButtonText:  'Cancelar',
+                confirmButtonColor: '#198754',
+                preConfirm: getProdFormValues
+            }).then(result => {
+                if (!result.isConfirmed) return;
+                $.post('components/products/api_products.php', { action: 'create', ...result.value }, null, 'json')
+                    .done(resp => {
+                        if (resp.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: '\u00a1Producto creado!',
+                                html: `<p>${resp.message}</p>
+                                       <p class="mt-2 mb-0 text-muted">\u00bfDeseas agregar im\u00e1genes al producto ahora?</p>`,
+                                showCancelButton: true,
+                                confirmButtonText: '<i class="bi bi-images me-1"></i> Agregar fotos',
+                                cancelButtonText:  '<i class="bi bi-clock me-1"></i> M\u00e1s tarde',
+                                confirmButtonColor: '#198754',
+                                cancelButtonColor:  '#6c757d',
+                            }).then(choice => {
+                                if (choice.isConfirmed) {
+                                    window.location.href = 'fotos_producto.php?id=' + resp.product_id;
+                                } else {
+                                    cargarProductos();
+                                }
+                            });
+                        } else {
+                            Swal.fire({ icon: 'error', title: 'Error', text: resp.message });
+                        }
+                    })
+                    .fail(() => Swal.fire({ icon: 'error', title: 'Error', text: 'Error de comunicación con el servidor.' }));
+            });
+        })
+        .fail(function () {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo generar el SKU. Intenta de nuevo.' });
+        });
 }
 
 /* ---- Modal: Editar producto ---- */
