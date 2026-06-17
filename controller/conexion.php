@@ -1,8 +1,8 @@
 <?php
 //datos local
-$server = "localhost";
+$server = "db";
 $username = "root";
-$password = "";
+$password = "root";
 $bd = "tienda_virtual";
 
 //creamos una conexión

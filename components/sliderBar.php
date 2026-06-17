@@ -92,6 +92,25 @@ require_once __DIR__ . '/../components/addUsers/swalAddUser.php';
                                 data-bs-toggle="popover"
                                 data-bs-trigger="hover focus"
                                 data-bs-placement="bottom"
+                                data-bs-content="Administrar blog y publicaciones">
+                                <a href="gestionar_blog.php">
+                                    <label class="checkbox-wrapper">
+                                        <span class="checkbox-tile">
+                                            <span class="checkbox-icon">
+                                                <i class="bi bi-bookmark-plus icono"></i>
+                                            </span>
+                                            <span class="checkbox-label">Blog</span>
+                                        </span>
+                                    </label>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="col-4">
+                            <div class="checkbox"
+                                data-bs-toggle="popover"
+                                data-bs-trigger="hover focus"
+                                data-bs-placement="bottom"
                                 data-bs-content="Configurar credenciales de correo">
                                 <a href="emailConfig.php">
                                     <label class="checkbox-wrapper">
@@ -125,7 +144,7 @@ require_once __DIR__ . '/../components/addUsers/swalAddUser.php';
                             </div>
                         </div>
 
-                        <div class="col-4">
+                        <!-- <div class="col-4">
                             <div class="checkbox"
                                 data-bs-toggle="popover"
                                 data-bs-trigger="hover focus"
@@ -141,7 +160,7 @@ require_once __DIR__ . '/../components/addUsers/swalAddUser.php';
                                     </label>
                                 </a>
                             </div>
-                        </div>
+                        </div> -->
                     <?php endif; ?>
 
                 </div>
