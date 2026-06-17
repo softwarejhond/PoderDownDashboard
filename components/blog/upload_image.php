@@ -37,11 +37,16 @@ $newName = 'blog_' . time() . '_' . bin2hex(random_bytes(4)) . '.png';
 $destPath = $uploadDir . $newName;
 
 if (move_uploaded_file($file['tmp_name'], $destPath)) {
-    $dbPath = 'img/blog/' . $newName;
+    $protocol  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host      = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $script    = $_SERVER['SCRIPT_NAME'] ?? '/';
+    $project   = rtrim(dirname(dirname(dirname($script))), '/\\');
+    $baseUrl   = $protocol . '://' . $host . $project . '/';
+    $dbPath    = 'img/blog/' . $newName;
     echo json_encode([
         'success' => true,
         'message' => 'Imagen subida correctamente',
-        'url'     => $dbPath,
+        'url'     => $baseUrl . $dbPath,
     ], JSON_UNESCAPED_UNICODE);
 } else {
     echo json_encode(['success' => false, 'message' => 'Error al mover la imagen al directorio de destino'], JSON_UNESCAPED_UNICODE);

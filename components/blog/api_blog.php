@@ -16,6 +16,30 @@ function slugify(string $str): string {
     return preg_replace('/[\s-]+/', '-', $str);
 }
 
+function absoluteImageUrls(string $content): string {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host     = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $script   = $_SERVER['SCRIPT_NAME'] ?? '/';
+    $project  = rtrim(dirname(dirname(dirname($script))), '/\\');
+    $baseUrl  = $protocol . '://' . $host . $project . '/';
+
+    // Transform Markdown images: ![alt](relative/path) -> ![alt](absolute/path)
+    $content = preg_replace(
+        '/!\[([^\]]*)\]\(\s*(?!https?:\/\/)([^)]+)\s*\)/',
+        '![$1](' . $baseUrl . '$2)',
+        $content
+    );
+
+    // Transform HTML <img> tags: <img src="relative/path"> -> <img src="absolute/path">
+    $content = preg_replace(
+        '/<img\s+([^>]*)src\s*=\s*["\'](?!https?:\/\/)([^"\']+)["\']([^>]*)>/i',
+        '<img $1src="' . $baseUrl . '$2"$3>',
+        $content
+    );
+
+    return $content;
+}
+
 function uniqueSlug($conn, string $table, string $slug, ?int $excludeId = null): string {
     $base = $slug;
     $i    = 1;
@@ -74,6 +98,8 @@ switch ($action) {
             $status = 'draft';
         }
 
+        $content = absoluteImageUrls($content);
+
         $slug   = uniqueSlug($conn, 'blog_posts', slugify($title));
         $t      = mysqli_real_escape_string($conn, $title);
         $sl     = mysqli_real_escape_string($conn, $slug);
@@ -113,6 +139,8 @@ switch ($action) {
         if (!in_array($status, ['draft', 'published'])) {
             $status = 'draft';
         }
+
+        $content = absoluteImageUrls($content);
 
         $t      = mysqli_real_escape_string($conn, $title);
         $c      = mysqli_real_escape_string($conn, $content);

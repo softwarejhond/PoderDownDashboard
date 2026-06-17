@@ -91,6 +91,11 @@
                         </div>
                     </div>
 
+                    <div class="mb-3" id="contentImagesSection" style="display:none;">
+                        <label class="form-label fw-bold"><i class="bi bi-images"></i> Imágenes en el contenido</label>
+                        <div id="contentImages" class="d-flex flex-wrap gap-2 align-items-start"></div>
+                    </div>
+
                     <div class="text-end">
                         <button type="button" class="btn btn-outline-secondary me-2" id="btnNewPost">
                             <i class="bi bi-plus-lg"></i> Nuevo
@@ -176,6 +181,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     easyMDE.codemirror.on('change', function() {
         setTimeout(enforceEditorFullWidth, 5);
+        clearTimeout(contentImagesDebounce);
+        contentImagesDebounce = setTimeout(function() {
+            showContentImages(easyMDE.value());
+        }, 400);
     });
 
     const imageInput = document.getElementById('imageInput');
@@ -306,6 +315,7 @@ document.addEventListener('DOMContentLoaded', function() {
         easyMDE.value('');
         imagePreview.style.display = 'none';
         previewImg.src = '';
+        document.getElementById('contentImagesSection').style.display = 'none';
         document.getElementById('btnSavePost').innerHTML = '<i class="bi bi-check-lg"></i> Guardar';
         setTimeout(enforceEditorFullWidth, 50);
         document.getElementById('blogTitle').focus();
@@ -361,6 +371,58 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+function extractImagesFromMarkdown(content) {
+    const images = [];
+    if (!content) return images;
+    const mdRegex = /!\[.*?\]\(([^)]+)\)/g;
+    let match;
+    while ((match = mdRegex.exec(content)) !== null) {
+        images.push(match[1]);
+    }
+    const htmlRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+    while ((match = htmlRegex.exec(content)) !== null) {
+        images.push(match[1]);
+    }
+    return [...new Set(images)];
+}
+
+function removeImageFromContent(url) {
+    var content = easyMDE.value();
+    var escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    content = content.replace(new RegExp('!\\[.*?\\]\\(\\s*' + escapedUrl + '\\s*\\)', 'g'), '');
+    content = content.replace(new RegExp('<img[^>]*src=["\']\\s*' + escapedUrl + '\\s*["\'][^>]*>', 'gi'), '');
+    content = content.replace(/\n{3,}/g, '\n\n').trim();
+    easyMDE.value(content);
+    showContentImages(content);
+}
+
+var contentImagesDebounce = null;
+
+function showContentImages(content) {
+    const section = document.getElementById('contentImagesSection');
+    const container = document.getElementById('contentImages');
+    const images = extractImagesFromMarkdown(content);
+
+    if (images.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+
+    section.style.display = 'block';
+    container.innerHTML = images.map(function(url) {
+        var escapedAttr = url.replace(/'/g, '\\x27').replace(/"/g, '&quot;');
+        return '<div class="position-relative" style="width:120px;">' +
+            '<button type="button" class="btn-close position-absolute top-0 end-0 bg-danger rounded-circle p-1 m-1" ' +
+            'style="width:20px;height:20px;font-size:10px;opacity:0.9;z-index:1;" ' +
+            'title="Eliminar del contenido" ' +
+            'onclick="removeImageFromContent(\'' + escapedAttr + '\')"></button>' +
+            '<a href="' + url + '" target="_blank">' +
+            '<img src="' + url + '" style="width:120px;height:90px;object-fit:cover;" class="img-thumbnail" alt="">' +
+            '</a>' +
+            '</div>';
+    }).join('');
+}
+
 function escapeHtml(text) {
     const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
     return String(text).replace(/[&<>"']/g, m => map[m]);
@@ -394,6 +456,8 @@ function editPost(id) {
         } else {
             document.getElementById('imagePreview').style.display = 'none';
         }
+
+        showContentImages(post.content);
 
         document.getElementById('redactar-tab').click();
         setTimeout(enforceEditorFullWidth, 100);
