@@ -78,17 +78,27 @@
                     </div>
 
                     <div class="mb-3">
-                        <button type="button" class="btn bg-magenta-dark text-white me-2" id="btnUploadImage">
-                            <i class="bi bi-image"></i> Subir imagen (PNG)
+                        <label class="form-label fw-bold">Imagen de portada</label>
+                        <small class="text-muted ms-2">(Recomendado: 16:9)</small>
+                        <button type="button" class="btn bg-magenta-dark text-white me-2" id="btnUploadCover">
+                            <i class="bi bi-image"></i> Subir portada (PNG)
                         </button>
-                        <input type="file" id="imageInput" accept="image/png" style="display:none;">
-                        <span id="imageUploadStatus" class="ms-2 text-muted"></span>
-                        <div id="imagePreview" class="mt-2" style="display:none;">
-                            <img id="previewImg" src="" alt="Imagen destacada" style="max-width:300px;max-height:200px;" class="img-thumbnail">
-                            <button type="button" class="btn btn-sm btn-outline-danger ms-2" id="btnRemoveImage">
+                        <input type="file" id="coverInput" accept="image/png" style="display:none;">
+                        <span id="coverUploadStatus" class="ms-2 text-muted"></span>
+                        <div id="coverPreview" class="mt-2" style="display:none;">
+                            <img id="coverPreviewImg" src="" alt="Imagen de portada" style="max-width:300px;max-height:200px;" class="img-thumbnail">
+                            <button type="button" class="btn btn-sm btn-outline-danger ms-2" id="btnRemoveCover">
                                 <i class="bi bi-x-circle"></i> Quitar
                             </button>
                         </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <button type="button" class="btn bg-magenta-dark text-white me-2" id="btnInsertContentImage">
+                            <i class="bi bi-image"></i> Insertar imagen en contenido (PNG)
+                        </button>
+                        <input type="file" id="contentImageInput" accept="image/png" style="display:none;">
+                        <span id="contentImageUploadStatus" class="ms-2 text-muted"></span>
                     </div>
 
                     <div class="mb-3" id="contentImagesSection" style="display:none;">
@@ -187,33 +197,33 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 400);
     });
 
-    const imageInput = document.getElementById('imageInput');
-    const imageUploadStatus = document.getElementById('imageUploadStatus');
-    const imagePreview = document.getElementById('imagePreview');
-    const previewImg = document.getElementById('previewImg');
+    const coverInput = document.getElementById('coverInput');
+    const coverUploadStatus = document.getElementById('coverUploadStatus');
+    const coverPreview = document.getElementById('coverPreview');
+    const coverPreviewImg = document.getElementById('coverPreviewImg');
     const featuredImage = document.getElementById('featuredImage');
 
-    document.getElementById('btnUploadImage').addEventListener('click', function() {
-        imageInput.click();
+    document.getElementById('btnUploadCover').addEventListener('click', function() {
+        coverInput.click();
     });
 
-    imageInput.addEventListener('change', function() {
+    coverInput.addEventListener('change', function() {
         const file = this.files[0];
         if (!file) return;
 
         if (file.type !== 'image/png' || !file.name.toLowerCase().endsWith('.png')) {
             Swal.fire({ title: 'Error', text: 'Solo se permiten imágenes PNG', icon: 'error', confirmButtonText: 'OK' });
-            imageInput.value = '';
+            coverInput.value = '';
             return;
         }
 
         if (file.size > 2 * 1024 * 1024) {
             Swal.fire({ title: 'Error', text: 'La imagen no debe superar los 2 MB', icon: 'error', confirmButtonText: 'OK' });
-            imageInput.value = '';
+            coverInput.value = '';
             return;
         }
 
-        imageUploadStatus.textContent = 'Subiendo...';
+        coverUploadStatus.textContent = 'Subiendo...';
 
         const formData = new FormData();
         formData.append('image', file);
@@ -223,28 +233,74 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.success) {
                 featuredImage.value = data.url;
-                previewImg.src = data.url;
-                imagePreview.style.display = 'block';
-                imageUploadStatus.textContent = '';
-                const cursor = easyMDE.codemirror.getCursor();
-                easyMDE.codemirror.replaceRange(`\n![${file.name}](${data.url})\n`, cursor);
+                coverPreviewImg.src = data.url;
+                coverPreview.style.display = 'block';
+                coverUploadStatus.textContent = '';
             } else {
                 Swal.fire({ title: 'Error', text: data.message, icon: 'error', confirmButtonText: 'OK' });
-                imageUploadStatus.textContent = '';
+                coverUploadStatus.textContent = '';
             }
-            imageInput.value = '';
+            coverInput.value = '';
         })
         .catch(() => {
             Swal.fire({ title: 'Error de conexión', text: 'No se pudo conectar al servidor', icon: 'error', confirmButtonText: 'OK' });
-            imageUploadStatus.textContent = '';
-            imageInput.value = '';
+            coverUploadStatus.textContent = '';
+            coverInput.value = '';
         });
     });
 
-    document.getElementById('btnRemoveImage').addEventListener('click', function() {
+    document.getElementById('btnRemoveCover').addEventListener('click', function() {
         featuredImage.value = '';
-        previewImg.src = '';
-        imagePreview.style.display = 'none';
+        coverPreviewImg.src = '';
+        coverPreview.style.display = 'none';
+    });
+
+    const contentImageInput = document.getElementById('contentImageInput');
+    const contentImageUploadStatus = document.getElementById('contentImageUploadStatus');
+
+    document.getElementById('btnInsertContentImage').addEventListener('click', function() {
+        contentImageInput.click();
+    });
+
+    contentImageInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (!file) return;
+
+        if (file.type !== 'image/png' || !file.name.toLowerCase().endsWith('.png')) {
+            Swal.fire({ title: 'Error', text: 'Solo se permiten imágenes PNG', icon: 'error', confirmButtonText: 'OK' });
+            contentImageInput.value = '';
+            return;
+        }
+
+        if (file.size > 2 * 1024 * 1024) {
+            Swal.fire({ title: 'Error', text: 'La imagen no debe superar los 2 MB', icon: 'error', confirmButtonText: 'OK' });
+            contentImageInput.value = '';
+            return;
+        }
+
+        contentImageUploadStatus.textContent = 'Subiendo...';
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        fetch('components/blog/upload_image.php', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const cursor = easyMDE.codemirror.getCursor();
+                easyMDE.codemirror.replaceRange(`\n![${file.name}](${data.url})\n`, cursor);
+                contentImageUploadStatus.textContent = '';
+            } else {
+                Swal.fire({ title: 'Error', text: data.message, icon: 'error', confirmButtonText: 'OK' });
+                contentImageUploadStatus.textContent = '';
+            }
+            contentImageInput.value = '';
+        })
+        .catch(() => {
+            Swal.fire({ title: 'Error de conexión', text: 'No se pudo conectar al servidor', icon: 'error', confirmButtonText: 'OK' });
+            contentImageUploadStatus.textContent = '';
+            contentImageInput.value = '';
+        });
     });
 
     document.getElementById('blogForm').addEventListener('submit', function(e) {
@@ -313,8 +369,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('featuredImage').value = '';
         document.getElementById('blogStatus').value = 'draft';
         easyMDE.value('');
-        imagePreview.style.display = 'none';
-        previewImg.src = '';
+        coverPreview.style.display = 'none';
+        coverPreviewImg.src = '';
         document.getElementById('contentImagesSection').style.display = 'none';
         document.getElementById('btnSavePost').innerHTML = '<i class="bi bi-check-lg"></i> Guardar';
         setTimeout(enforceEditorFullWidth, 50);
@@ -451,10 +507,10 @@ function editPost(id) {
         document.getElementById('btnSavePost').innerHTML = '<i class="bi bi-check-lg"></i> Actualizar';
 
         if (post.featured_image) {
-            document.getElementById('previewImg').src = post.featured_image;
-            document.getElementById('imagePreview').style.display = 'block';
+            document.getElementById('coverPreviewImg').src = post.featured_image;
+            document.getElementById('coverPreview').style.display = 'block';
         } else {
-            document.getElementById('imagePreview').style.display = 'none';
+            document.getElementById('coverPreview').style.display = 'none';
         }
 
         showContentImages(post.content);
