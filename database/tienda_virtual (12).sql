@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: db:3306
--- Tiempo de generación: 16-06-2026 a las 23:10:00
+-- Tiempo de generación: 25-06-2026 a las 20:00:45
 -- Versión del servidor: 10.6.27-MariaDB-ubu2204
 -- Versión de PHP: 8.3.31
 
@@ -62,6 +62,33 @@ CREATE TABLE `banners` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Estructura de tabla para la tabla `blog_posts`
+--
+
+CREATE TABLE `blog_posts` (
+  `id` int(11) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `slug` varchar(255) NOT NULL,
+  `content` longtext NOT NULL,
+  `excerpt` text DEFAULT NULL,
+  `featured_image` varchar(255) DEFAULT NULL,
+  `status` enum('draft','published') NOT NULL DEFAULT 'draft',
+  `author` varchar(100) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
+
+--
+-- Volcado de datos para la tabla `blog_posts`
+--
+
+INSERT INTO `blog_posts` (`id`, `title`, `slug`, `content`, `excerpt`, `featured_image`, `status`, `author`, `created_at`, `updated_at`) VALUES
+(1, 'Prueba de blog', 'prueba-de-blog', '**Lorem** ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum eu volutpat tortor. Aliquam erat volutpat. Praesent finibus metus id ligula dapibus consequat. Curabitur quis augue non metus malesuada auctor vel eu erat. Integer nunc diam, porttitor vitae arcu sed, porttitor ultricies massa. Cras sodales id magna faucibus bibendum. Quisque placerat dui mauris, ullamcorper suscipit felis scelerisque ultricies. Duis nec bibendum ante. Pellentesque eget accumsan turpis. Proin magna felis, euismod quis lectus ac, commodo lobortis nisi. Vivamus nec erat quis lacus suscipit posuere. Duis quis mollis urna, in aliquam felis.\r\n\r\n\r\n![Gemini_Generated_Image_392vkh392vkh392v.png](http://localhost/PODER-DOWN/img/blog/blog_1781737933_42c7a65b.png)\r\n\r\n\r\n* Vivamus ac elit rutrum, *maximus sapien non*, imperdiet nulla. Quisque finibus bibendum lacus. Praesent facilisis ac nisl quis molestie. Donec nec pellentesque diam. Morbi lacus urna, viverra ut urna at, tincidunt rutrum mauris. Praesent pharetra nisl vel sagittis laoreet. Nulla facilisi. Curabitur eu libero non dolor aliquet gravida eu ac erat. Suspendisse et turpis in odio fermentum mattis. Fusce efficitur vitae leo ut viverra. Praesent pharetra eget enim eu suscipit. Suspendisse cursus vel turpis ut maximus. Suspendisse lacinia nec tortor ac aliquet. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Phasellus tempor pellentesque euismod.', 'Prueba de escritura de blog', 'http://localhost/PODER-DOWN/img/blog/blog_1781737933_42c7a65b.png', 'published', '1047996089', '2026-06-17 19:08:48', '2026-06-17 23:46:46'),
+(2, 'Lorem IPSUM', 'lorem-ipsum', '1. Plataforma Q10 (Software de Gestión Educativa / LMS)\r\nSi te refieres a la plataforma en la nube utilizada por colegios, universidades e instituciones tecnológicas para gestionar matrículas, notas y aulas virtuales:\r\n\r\nNo tiene un precio fijo único, ya que se cotiza a la medida según el número de estudiantes de la institución.  \r\n\r\nPlanes de referencia: El plan Básico suele arrancar desde los $980 USD al año (~$1,960 USD la anualidad en planes semestrales base de $340 USD por semestre para instituciones pequeñas de hasta 300 alumnos).  \r\n\r\nLos planes Profesional y Avanzado escalan a partir de los $1,440 USD y $2,238 USD anuales en adelante, dependiendo de los módulos contratados (como facturación electrónica masiva o soporte dedicado).\r\n\r\n\r\n![Gemini_Generated_Image_llpylmllpylmllpy.png](http://localhost/PODER-DOWN/img/blog/blog_1781807553_576c583e.png)\r\n\r\n\r\nPrueba de subida de iamgen \r\n\r\n\r\n![poder_down_vertical-grande.png](http://localhost/PODER-DOWN/img/blog/blog_1781807627_adcda5a5.png)\r\n\r\n\r\nPero ojo\r\nAumentar el límite es un parche. Vale la pena revisar la línea 8 de write_email.php para ver qué está cargando. Si es un foreach que envía muchos emails de una vez o lee un archivo completo en memoria, lo ideal sería optimizar el código (por ejemplo, procesando por lotes) en lugar de solo subir el límite indefinidamente.\r\n¿Quieres que revisemos esa parte del código?', '1. Plataforma Q10 (Software de Gestión Educativa / LMS)\r\nSi te refieres a la plataforma en la nube utilizada por colegios, universidades e instituciones tecnológicas para gestionar matrículas, notas y aulas virtuales:', 'http://localhost/PODER-DOWN/img/blog/blog_1781807541_3fff6d73.png', 'published', '1047996089', '2026-06-18 18:33:54', '2026-06-18 18:33:54');
 
 -- --------------------------------------------------------
 
@@ -279,6 +306,14 @@ CREATE TABLE `customers` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `customers`
+--
+
+INSERT INTO `customers` (`id`, `email`, `password`, `first_name`, `last_name`, `phone`, `document_type`, `document_number`, `gender`, `birthdate`, `avatar`, `email_verified`, `email_verification_token`, `password_reset_token`, `password_reset_expires`, `is_active`, `last_login`, `login_attempts`, `locked_until`, `newsletter_subscribed`, `notes`, `created_at`, `updated_at`) VALUES
+(1, 'cliente@test.com', '$2y$10$dgRCW0OdMht/zrifU5NVAezda3yILpI48XtGrmGGvI8VU1F7GYn6W', 'Cliente', 'Prueba', '3001234567', 'CC', NULL, NULL, NULL, NULL, 1, NULL, NULL, NULL, 1, '2026-06-16 23:49:09', 0, NULL, 0, NULL, '2026-06-16 23:31:00', '2026-06-16 23:49:09'),
+(2, 'maria@test.com', '$2y$10$Oe2CRyscD1FF9rfyyHl5auvrS4UD9kajWlHDbns5pFAeOb15XNREi', 'Maria', 'Gomez', '3115556677', 'CC', NULL, NULL, NULL, NULL, 1, NULL, NULL, NULL, 1, NULL, 0, NULL, 0, NULL, '2026-06-16 23:31:23', '2026-06-16 23:31:23');
 
 -- --------------------------------------------------------
 
@@ -2310,6 +2345,19 @@ CREATE TABLE `user_register` (
 --
 
 --
+-- Indices de la tabla `blog_posts`
+--
+ALTER TABLE `blog_posts`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `slug` (`slug`);
+
+--
+-- Indices de la tabla `carts`
+--
+ALTER TABLE `carts`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indices de la tabla `categories`
 --
 ALTER TABLE `categories`
@@ -2319,6 +2367,18 @@ ALTER TABLE `categories`
 -- Indices de la tabla `company`
 --
 ALTER TABLE `company`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indices de la tabla `customers`
+--
+ALTER TABLE `customers`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indices de la tabla `customer_sessions`
+--
+ALTER TABLE `customer_sessions`
   ADD PRIMARY KEY (`id`);
 
 --
@@ -2372,6 +2432,30 @@ ALTER TABLE `product_images`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indices de la tabla `product_attributes`
+--
+ALTER TABLE `product_attributes`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indices de la tabla `product_attribute_values`
+--
+ALTER TABLE `product_attribute_values`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indices de la tabla `product_variants`
+--
+ALTER TABLE `product_variants`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indices de la tabla `product_variant_attributes`
+--
+ALTER TABLE `product_variant_attributes`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indices de la tabla `sms_credentials`
 --
 ALTER TABLE `sms_credentials`
@@ -2415,6 +2499,18 @@ ALTER TABLE `user_register`
 --
 
 --
+-- AUTO_INCREMENT de la tabla `blog_posts`
+--
+ALTER TABLE `blog_posts`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT de la tabla `carts`
+--
+ALTER TABLE `carts`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT de la tabla `categories`
 --
 ALTER TABLE `categories`
@@ -2425,6 +2521,18 @@ ALTER TABLE `categories`
 --
 ALTER TABLE `company`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT de la tabla `customers`
+--
+ALTER TABLE `customers`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT de la tabla `customer_sessions`
+--
+ALTER TABLE `customer_sessions`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT de la tabla `departamentos`
@@ -2473,6 +2581,30 @@ ALTER TABLE `products`
 --
 ALTER TABLE `product_images`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
+-- AUTO_INCREMENT de la tabla `product_attributes`
+--
+ALTER TABLE `product_attributes`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT de la tabla `product_attribute_values`
+--
+ALTER TABLE `product_attribute_values`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `product_variants`
+--
+ALTER TABLE `product_variants`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT de la tabla `product_variant_attributes`
+--
+ALTER TABLE `product_variant_attributes`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT de la tabla `sms_credentials`

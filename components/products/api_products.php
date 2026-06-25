@@ -52,7 +52,9 @@ switch ($action) {
         $sql = "SELECT p.*,
                     c.name AS category_name,
                     (SELECT COUNT(*) FROM product_images pi WHERE pi.product_id = p.id) AS image_count,
-                    (SELECT pi2.image_path FROM product_images pi2 WHERE pi2.product_id = p.id AND pi2.is_primary = 1 LIMIT 1) AS primary_image
+                    (SELECT pi2.image_path FROM product_images pi2 WHERE pi2.product_id = p.id AND pi2.is_primary = 1 LIMIT 1) AS primary_image,
+                    (SELECT COUNT(*) FROM product_variants pv WHERE pv.product_id = p.id) AS variant_count,
+                    CASE WHEN (SELECT COUNT(*) FROM product_variants pv2 WHERE pv2.product_id = p.id) > 0 THEN 1 ELSE 0 END AS has_variants
                 FROM products p
                 LEFT JOIN categories c ON c.id = p.category_id
                 ORDER BY p.created_at DESC";
@@ -170,6 +172,21 @@ switch ($action) {
                 WHERE id=$id";
 
         if (mysqli_query($conn, $sql)) {
+            // Si el producto tiene variantes, sincronizar stock y precio desde ellas
+            $vCheck = mysqli_query($conn, "SELECT COUNT(*) AS cnt FROM product_variants WHERE product_id=$id AND is_active=1");
+            $vRow   = mysqli_fetch_assoc($vCheck);
+            if ((int)$vRow['cnt'] > 0) {
+                $sync = mysqli_query($conn, "
+                    SELECT COALESCE(SUM(stock), 0) AS total_stock,
+                           COALESCE(MIN(price), 0) AS min_price
+                    FROM product_variants
+                    WHERE product_id = $id AND is_active = 1
+                ");
+                $syncRow = mysqli_fetch_assoc($sync);
+                $totalStock = (int)$syncRow['total_stock'];
+                $minPrice   = (float)$syncRow['min_price'];
+                mysqli_query($conn, "UPDATE products SET stock=$totalStock, price=$minPrice WHERE id=$id");
+            }
             echo json_encode(['success' => true, 'message' => 'Producto actualizado correctamente'], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode(['success' => false, 'message' => 'Error al actualizar: ' . mysqli_error($conn)], JSON_UNESCAPED_UNICODE);
