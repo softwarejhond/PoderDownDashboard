@@ -164,10 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             case 'updatePictureProfile':
                 if (isset($_POST['usuario']) && isset($_FILES['image'])) {
                     $resultado = actualizarFotoPerfil($conn, $_POST['usuario'], $_FILES['image']);
-                    // Almacena el mensaje para mostrarlo en el frontend
                     $_SESSION['resultado_foto'] = $resultado;
-                    echo json_encode($resultado); // Opcional: puedes devolver el resultado como JSON
-                    // Agregar redirección para evitar recarga del formulario y mostrar cambios
                     header("Location: profile.php");
                     exit;
                 } else {
