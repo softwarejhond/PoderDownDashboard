@@ -90,7 +90,8 @@ if (isset($_SESSION['campos_incompletos']) && $_SESSION['campos_incompletos'] ==
                 </div>
             </div>
             <hr>
-            <?php //include("components/cardContadores/contadoresCards.php"); 
+            <?php
+            include("components/pedidos/gestion_pedidos.php");
             ?>
 
             <?php //include("components/aceptUsers/updateStatus.php");  
@@ -121,7 +122,7 @@ if (isset($_SESSION['campos_incompletos']) && $_SESSION['campos_incompletos'] ==
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.0/dist/sweetalert2.min.js"></script>
 <!-- <script src="js/real-time-update-contadores.js?v=0.3"></script> -->
 <script src="js/dataTables.js?v=0.2"></script>
-<script>
+<!-- <script>
     $(document).ready(function() {
         $('#link-dashboard').addClass('pagina-activa');
 
@@ -150,9 +151,9 @@ if (isset($_SESSION['campos_incompletos']) && $_SESSION['campos_incompletos'] ==
             });
         <?php endif; ?>
     });
-</script>
+</script> -->
 
-<style>
+<!-- <style>
     .swal-wide {
         width: 600px !important;
     }
@@ -207,7 +208,7 @@ if (isset($_SESSION['campos_incompletos']) && $_SESSION['campos_incompletos'] ==
             filter: hue-rotate(180deg);
         }
     }
-</style>
+</style> -->
 
 </body>
 
