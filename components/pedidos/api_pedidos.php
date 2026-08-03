@@ -124,11 +124,11 @@ switch ($action) {
         $stmt = mysqli_prepare($conn, "SELECT o.order_number, o.customer_name, o.total, o.status,
                                               s.carrier, s.tracking_number, s.created_at AS shipped_at, s.email_sent,
                                               a.admin_username, a.created_at AS audit_at,
-                                              inv.filename AS invoice_filename
+                                              inv.filename AS receipt_filename
                                        FROM orders o
                                        JOIN order_shipments s ON s.order_id = o.id
                                        LEFT JOIN order_shipment_audit a ON a.shipment_id = s.id
-                                       LEFT JOIN invoices inv ON inv.order_id = o.id
+                                       LEFT JOIN receipts inv ON inv.order_id = o.id
                                        WHERE o.id = ?");
         mysqli_stmt_bind_param($stmt, 'i', $orderId);
         mysqli_stmt_execute($stmt);

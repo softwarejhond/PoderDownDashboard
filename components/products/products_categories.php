@@ -755,7 +755,7 @@ function getProdFormValues() {
         Swal.showValidationMessage('Ingresa un stock válido (≥ 0)'); return false;
     }
 
-    return {
+    const productData = {
         sku,
         name,
         short_description:   document.getElementById('prodShortDesc').value.trim(),
@@ -771,6 +771,58 @@ function getProdFormValues() {
         is_featured:         document.getElementById('prodFeatured').checked ? 1 : 0,
         is_digital:          document.getElementById('prodDigital').checked  ? 1 : 0,
     };
+
+    if (!hasVariants || variantsData.length === 0) {
+        return productData;
+    }
+
+    var variantUpdates = [];
+    var skuInputs   = document.querySelectorAll('.var-sku');
+    var priceInputs = document.querySelectorAll('.var-price');
+    var stockInputs = document.querySelectorAll('.var-stock');
+    var activeSels  = document.querySelectorAll('.var-active');
+    skuInputs.forEach(function (input) {
+        var idx = parseInt(input.dataset.idx);
+        if (isNaN(idx) || !variantsData[idx]) return;
+        var v = variantsData[idx];
+        var skuVal = input.value.trim();
+        if (!skuVal) return;
+        var vuPrice = priceInputs[idx] ? priceInputs[idx].value : '';
+        variantUpdates.push({
+            id: v.id,
+            sku: skuVal,
+            price: vuPrice !== '' ? vuPrice : price,
+            stock: stockInputs[idx] ? stockInputs[idx].value : 0,
+            is_active: activeSels[idx] ? activeSels[idx].value : 1,
+            name: v.name || '',
+        });
+    });
+
+    if (variantUpdates.length === 0) {
+        return productData;
+    }
+
+    return new Promise(function (resolve, reject) {
+        var promises = [];
+        variantUpdates.forEach(function (vu) {
+            var d = $.Deferred();
+            $.post('components/products/api_product_variants.php', {
+                action: 'update',
+                id: vu.id,
+                sku: vu.sku,
+                price: vu.price,
+                stock: vu.stock !== '' ? vu.stock : 0,
+                is_active: vu.is_active,
+                name: vu.name || '',
+            }, null, 'json')
+                .done(function (r) { d.resolve(r); })
+                .fail(function () { d.resolve({ success: false }); });
+            promises.push(d.promise());
+        });
+        $.when.apply($, promises).then(function () {
+            resolve(productData);
+        });
+    });
 }
 
 /* ---- Modal: Agregar producto ---- */
@@ -897,18 +949,16 @@ function modalEditarProducto(id) {
     }).then(result => {
         if (!result.isConfirmed) return;
 
-        guardarCambiosVariantes().then(() => {
-            $.post('components/products/api_products.php', { action: 'update', id, ...result.value }, null, 'json')
-                .done(resp => {
-                    if (resp.success) {
-                        Swal.fire({ icon: 'success', title: '¡Actualizado!', text: resp.message, timer: 1800, showConfirmButton: false });
-                        cargarProductos();
-                    } else {
-                        Swal.fire({ icon: 'error', title: 'Error', text: resp.message });
-                    }
-                })
-                .fail(() => Swal.fire({ icon: 'error', title: 'Error', text: 'Error de comunicación con el servidor.' }));
-        });
+        $.post('components/products/api_products.php', { action: 'update', id, ...result.value }, null, 'json')
+            .done(resp => {
+                if (resp.success) {
+                    Swal.fire({ icon: 'success', title: '¡Actualizado!', text: resp.message, timer: 1800, showConfirmButton: false });
+                    cargarProductos();
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: resp.message });
+                }
+            })
+            .fail(() => Swal.fire({ icon: 'error', title: 'Error', text: 'Error de comunicación con el servidor.' }));
     });
 }
 
@@ -1312,9 +1362,9 @@ function confirmarEliminarValor(id, valor, attrId) {
 
 /* ================================================================
    VARIANTES
-================================================================ */
-let variantsData     = [];
-let editingProductId = null;
+=============================================================== */
+let variantsData          = [];
+let editingProductId      = null;
 
 function toggleVariantSection() {
     const checked = document.getElementById('prodHasVariants').checked;
@@ -1505,7 +1555,7 @@ function renderVariantsTable() {
             <tr>
                 <td class="small fw-semibold">${escHtml(v.attributes_display || v.name || '—')}</td>
                 <td><input type="text" class="form-control form-control-sm var-sku" data-idx="${i}" value="${escHtml(v.sku)}" style="font-size:0.75rem;"></td>
-                <td><input type="number" step="0.01" min="0" class="form-control form-control-sm var-price" data-idx="${i}" value="${v.price || ''}" style="font-size:0.75rem;"></td>
+                <td><input type="number" step="0.01" min="0" class="form-control form-control-sm var-price" data-idx="${i}" value="${v.price != null ? v.price : ''}" style="font-size:0.75rem;"></td>
                 <td><input type="number" min="0" class="form-control form-control-sm var-stock" data-idx="${i}" value="${v.stock || 0}" style="font-size:0.75rem;width:65px;"></td>
                 <td class="text-center">
                     <select class="form-select form-select-sm var-active" data-idx="${i}" style="font-size:0.7rem;padding:2px 4px;">
@@ -1543,45 +1593,6 @@ function eliminarVarianteDelForm(variantId, idx) {
                 Swal.fire({ icon: 'error', title: 'Error', text: resp.message });
             }
         });
-}
-
-function guardarCambiosVariantes() {
-    if (!editingProductId || variantsData.length === 0) return $.Deferred().resolve().promise();
-
-    const skuInputs   = document.querySelectorAll('.var-sku');
-    const priceInputs = document.querySelectorAll('.var-price');
-    const stockInputs = document.querySelectorAll('.var-stock');
-    const activeSels  = document.querySelectorAll('.var-active');
-
-    const promises = [];
-    skuInputs.forEach(input => {
-        const idx = parseInt(input.dataset.idx);
-        const v   = variantsData[idx];
-        if (!v) return;
-
-        const sku    = input.value.trim();
-        const price  = priceInputs[idx].value;
-        const stock  = stockInputs[idx].value;
-        const active = activeSels[idx].value;
-
-        if (!sku) return;
-
-        const deferred = $.Deferred();
-        $.post('components/products/api_product_variants.php', {
-            action: 'update',
-            id: v.id,
-            sku,
-            price: price !== '' ? price : '',
-            stock: stock !== '' ? stock : 0,
-            is_active: active,
-            name: v.name || '',
-        }, null, 'json')
-            .done(r => deferred.resolve(r))
-            .fail(() => deferred.resolve({ success: false }));
-        promises.push(deferred.promise());
-    });
-
-    return $.when.apply($, promises);
 }
 
 /* ================================================================

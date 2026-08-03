@@ -8,7 +8,11 @@
 <div class="card shadow-sm mb-4" id="cardGestionPedidos">
     <div class="card-header d-flex align-items-center justify-content-between bg-white">
         <h5 class="mb-0"><i class="bi bi-box-seam"></i> Gestión de Pedidos</h5>
-        <span class="badge bg-amber-dark" id="badgePorEnviar">Por enviar: 0</span>
+        <div class="d-flex gap-2 align-items-center">
+            <button class="btn btn-sm bg-indigo-dark" id="btnNotificaciones"><i class="bi bi-bell"></i> Notificar a</button>
+            <button class="btn btn-sm bg-teal-dark" id="btnCostoEnvio"><i class="bi bi-truck"></i> Costo envío</button>
+            <span class="badge bg-amber-dark" id="badgePorEnviar">Por enviar: 0</span>
+        </div>
     </div>
     <div class="card-body w-100">
         <div class="table-responsive w-100">
@@ -36,6 +40,9 @@
 $(document).ready(function () {
     const API_PEDIDOS = 'components/pedidos/api_pedidos.php';
     const API_ENVIAR = 'components/pedidos/enviar_pedido.php';
+    const API_NOTIFICAR = 'components/pedidos/notificar_nuevo_pedido.php';
+    const API_NOTIFY_USERS = 'components/pedidos/api_notify_users.php';
+    const API_ENVIO_CONFIG = 'components/pedidos/api_envio_config.php';
     const POLL_MS = 10000;
 
     let lastMaxId = 0;
@@ -164,6 +171,11 @@ $(document).ready(function () {
                     timerProgressBar: true
                 });
                 cargarPedidos();
+
+                // Notificar a los usuarios asignados por email (fuego y olvido)
+                var formNotif = new FormData();
+                formNotif.append('order_id', res.max_id);
+                navigator.sendBeacon(API_NOTIFICAR, formNotif);
             })
             .catch(function () {});
     }
@@ -287,9 +299,9 @@ $(document).ready(function () {
 
                 const auditado = d.admin_username ? '<span class="badge bg-lime-dark" style="font-size:14px">Confirmado por</span> <strong>' + escapeHtml(d.admin_username) + '</strong><br><span class="text-muted">' + formatoFecha(d.audit_at) + '</span>' : '';
 
-                const invoiceLink = d.invoice_filename
-                    ? '<a href="uploads/facturas/' + escapeHtml(d.invoice_filename) + '" target="_blank" class="btn btn-sm bg-magenta-dark mt-2" style="font-size:14px"><i class="bi bi-file-pdf"></i> Ver factura PDF</a>'
-                    : '<span class="text-muted small">Factura no disponible</span>';
+                const invoiceLink = d.receipt_filename
+                    ? '<a href="uploads/facturas/' + escapeHtml(d.receipt_filename) + '" target="_blank" class="btn btn-sm bg-magenta-dark mt-2" style="font-size:14px"><i class="bi bi-file-pdf"></i> Ver recibo PDF</a>'
+                    : '<span class="text-muted">Recibo no disponible</span>';
 
                 Swal.fire({
                     title: '<i class="bi bi-truck"></i> Pedido ' + escapeHtml(d.order_number),
@@ -314,6 +326,133 @@ $(document).ready(function () {
                 });
             })
             .catch(function (err) { Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo cargar: ' + err }); });
+    });
+
+    /* =============================================
+     * MODAL: ASIGNAR NOTIFICACIONES (switches)
+     * ============================================= */
+    $('#btnNotificaciones').on('click', function () {
+        Swal.fire({ title: 'Cargando usuarios...', allowOutsideClick: false, didOpen: function () { Swal.showLoading(); } });
+
+        fetch(API_NOTIFY_USERS + '?action=listar')
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                if (!res.success) { Swal.fire({ icon: 'error', title: 'Error', text: res.message }); return; }
+
+                var rows = '';
+                res.data.forEach(function (u) {
+                    var checked = u.notificaciones_activas == 1 ? 'checked' : '';
+                    rows += '<tr>' +
+                        '<td style="font-size:14px">' + escapeHtml(u.username) + '</td>' +
+                        '<td style="font-size:14px">' + escapeHtml(u.nombre) + '</td>' +
+                        '<td style="font-size:13px">' + escapeHtml(u.email) + '</td>' +
+                        '<td class="text-center">' +
+                        '<div class="form-check form-switch d-inline-block">' +
+                        '<input class="form-check-input switch-notify" type="checkbox" role="switch" data-user-id="' + u.id + '" ' + checked + ' style="cursor:pointer;transform:scale(1.3)">' +
+                        '</div>' +
+                        '</td>' +
+                        '</tr>';
+                });
+
+                Swal.fire({
+                    title: '<i class="bi bi-bell"></i> Usuarios que reciben notificaciones',
+                    html:
+                        '<div class="text-start" style="font-size:14px">' +
+                        '<p class="text-muted small">Activa el interruptor para que el usuario reciba un correo cada vez que llegue un pedido nuevo pagado.</p>' +
+                        '<div style="max-height:400px;overflow-y:auto">' +
+                        '<table class="table table-sm table-striped mb-0" style="font-size:14px">' +
+                        '<thead><tr><th>Username</th><th>Nombre</th><th>Email</th><th class="text-center">Activo</th></tr></thead>' +
+                        '<tbody>' + rows + '</tbody>' +
+                        '</table>' +
+                        '</div>' +
+                        '</div>',
+                    width: '850px',
+                    showConfirmButton: false,
+                    showCloseButton: true,
+                    customClass: { popup: 'text-start' },
+                    didOpen: function () {
+                        // Evento para los switches
+                        document.querySelectorAll('.switch-notify').forEach(function (sw) {
+                            sw.addEventListener('change', function () {
+                                var uid = this.getAttribute('data-user-id');
+                                var active = this.checked ? 1 : 0;
+                                var formData = new FormData();
+                                formData.append('action', 'toggle');
+                                formData.append('user_id', uid);
+                                formData.append('active', active);
+                                fetch(API_NOTIFY_USERS, { method: 'POST', body: formData })
+                                    .then(function (r) { return r.json(); })
+                                    .then(function (res) {
+                                        if (!res.success) {
+                                            Swal.fire({ icon: 'error', title: 'Error', text: res.message, toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                                        }
+                                    });
+                            });
+                        });
+                    }
+                });
+            })
+            .catch(function (err) { Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Error al cargar usuarios' }); });
+    });
+
+    /* =============================================
+     * MODAL: CONFIGURAR COSTO DE ENVÍO
+     * ============================================= */
+    $('#btnCostoEnvio').on('click', function () {
+        Swal.fire({ title: 'Cargando...', allowOutsideClick: false, didOpen: function () { Swal.showLoading(); } });
+
+        fetch(API_ENVIO_CONFIG + '?action=get')
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                if (!res.success) { Swal.fire({ icon: 'error', title: 'Error', text: res.message }); return; }
+
+                var valorActual = res.valor;
+
+                Swal.fire({
+                    title: '<i class="bi bi-truck"></i> Costo de envío',
+                    html:
+                        '<div class="text-start" style="font-size:15px">' +
+                        '<p class="text-muted">Valor actual: <strong>$' + valorActual.toLocaleString('es-CO', { maximumFractionDigits: 0 }) + '</strong></p>' +
+                        '<label class="fw-bold">Nuevo valor:</label>' +
+                        '<input type="number" id="swalCostoEnvio" class="swal2-input" value="' + valorActual + '" min="0" step="100" style="font-size:15px">' +
+                        '</div>',
+                    showCancelButton: true,
+                    confirmButtonText: '<i class="bi bi-check-lg"></i> Guardar',
+                    confirmButtonColor: '#006d68',
+                    cancelButtonText: 'Cancelar',
+                    width: '500px',
+                    customClass: { popup: 'text-start' },
+                    preConfirm: function () {
+                        var nuevo = parseFloat(document.getElementById('swalCostoEnvio').value);
+                        if (isNaN(nuevo) || nuevo < 0) {
+                            Swal.showValidationMessage('Ingresa un valor válido');
+                            return false;
+                        }
+                        return nuevo;
+                    }
+                }).then(function (result) {
+                    if (!result.isConfirmed) return;
+                    var nuevoValor = result.value;
+
+                    Swal.fire({ title: 'Guardando...', allowOutsideClick: false, didOpen: function () { Swal.showLoading(); } });
+
+                    var formData = new FormData();
+                    formData.append('action', 'update');
+                    formData.append('valor', nuevoValor);
+
+                    fetch(API_ENVIO_CONFIG, { method: 'POST', body: formData })
+                        .then(function (r) { return r.json(); })
+                        .then(function (res) {
+                            if (res.success) {
+                                Swal.fire({ icon: 'success', title: 'Actualizado', text: res.message, toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+                            } else {
+                                Swal.fire({ icon: 'error', title: 'Error', text: res.message });
+                            }
+                        })
+                        .catch(function (err) { Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Error al guardar' }); });
+                });
+            })
+            .catch(function (err) { Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Error al cargar' }); });
     });
 
     /* ---------- Inicio ---------- */

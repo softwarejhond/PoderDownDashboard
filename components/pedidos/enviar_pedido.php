@@ -98,7 +98,7 @@ try {
     }
 } catch (Throwable $e) {}
 
-/* ========== GENERAR FACTURA PDF ========== */
+/* ========== GENERAR RECIBO PDF ========== */
 $pdfOk = false;
 $pdfFilename = '';
 $pdfError = '';
@@ -136,7 +136,7 @@ try {
     $htmlPdf = <<<PDFHTML
 <!DOCTYPE html>
 <html lang="es">
-<head><meta charset="UTF-8"><title>Factura $codigo</title>
+<head><meta charset="UTF-8"><title>Recibo $codigo</title>
 <style>
 body{font-family:DejaVu Sans,Arial,sans-serif;color:#1A3A5C;margin:0;padding:20px;font-size:13px;}
 .header{border-bottom:3px solid #1A3A5C;padding-bottom:12px;margin-bottom:16px;}
@@ -155,7 +155,7 @@ td.ta-right{text-align:right;}
 <body>
 <div class="header">
     <h1>$empresaNombre</h1>
-    <div class="sub">Factura de pedido</div>
+    <div class="sub">Recibo de pedido</div>
 </div>
 <div class="section">
     <div><strong>Factura:</strong> $codigo</div>
@@ -195,7 +195,7 @@ PDFHTML;
     $dompdf->render();
     file_put_contents($pdfPath, $dompdf->output());
 
-    $stmt = mysqli_prepare($conn, "INSERT INTO invoices (order_id, filename) VALUES (?, ?)");
+    $stmt = mysqli_prepare($conn, "INSERT INTO receipts (order_id, filename) VALUES (?, ?)");
     mysqli_stmt_bind_param($stmt, 'is', $orderId, $pdfFilename);
     mysqli_stmt_execute($stmt);
     mysqli_stmt_close($stmt);
@@ -278,7 +278,7 @@ try {
                         <strong>Dirección de envío:</strong> {$direccionH}
                     </p>
                     <p style="font-size:14px;color:#1A3A5C;line-height:1.7;margin:0;">
-                        La factura de tu pedido se adjunta en PDF. Puedes rastrear tu paquete en la página de la transportadora con el número de guía. Si tienes alguna duda, escríbenos a <a href="mailto:info@poderdown.com" style="color:#3CAEE0;">info@poderdown.com</a>.
+                        El recibo de tu pedido se adjunta en PDF. Puedes rastrear tu paquete en la página de la transportadora con el número de guía. Si tienes alguna duda, escríbenos a <a href="mailto:info@poderdown.com" style="color:#3CAEE0;">info@poderdown.com</a>.
                     </p>
                 </td>
             </tr>
@@ -299,7 +299,7 @@ HTML;
         . "Transportadora: {$carrier}\n"
         . "Número de guía: {$tracking}\n\n"
         . implode("\n", $itemsText) . "\n\n"
-        . "La factura se adjunta en PDF. Poder Down — poderdown.com";
+        . "El recibo se adjunta en PDF. Poder Down — poderdown.com";
 
     $mail = new PHPMailer(true);
     $mail->isSMTP();
@@ -322,7 +322,7 @@ HTML;
     if ($pdfOk && $pdfFilename !== '') {
         $pdfFullPath = __DIR__ . '/../../uploads/facturas/' . $pdfFilename;
         if (file_exists($pdfFullPath)) {
-            $mail->addAttachment($pdfFullPath, 'Factura_' . $order['order_number'] . '.pdf');
+            $mail->addAttachment($pdfFullPath, 'Recibo_' . $order['order_number'] . '.pdf');
         }
     }
 
@@ -342,7 +342,7 @@ HTML;
 
 $msg = 'Envío registrado';
 if ($emailOk) $msg .= ' y correo enviado al cliente';
-if ($pdfOk) $msg .= ' (factura PDF generada)';
+if ($pdfOk) $msg .= ' (recibo PDF generado)';
 if (!$emailOk && $emailError !== '') $msg .= ', pero el correo falló: ' . $emailError;
 if (!$pdfOk) $msg .= '. El PDF no pudo generarse';
 

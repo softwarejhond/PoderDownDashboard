@@ -256,7 +256,6 @@ switch ($action) {
         $productId     = (int)($_POST['product_id'] ?? 0);
         $sku           = trim($_POST['sku'] ?? '');
         $name          = trim($_POST['name'] ?? '');
-        $price         = $_POST['price'] !== '' ? (float)$_POST['price'] : 'NULL';
         $comparePrice  = $_POST['compare_price'] !== '' ? (float)$_POST['compare_price'] : 'NULL';
         $costPrice     = $_POST['cost_price'] !== '' ? (float)$_POST['cost_price'] : 'NULL';
         $stock         = (int)($_POST['stock'] ?? 0);
@@ -267,6 +266,14 @@ switch ($action) {
         if (!$productId || $sku === '') {
             echo json_encode(['success' => false, 'message' => 'Producto y SKU requeridos'], JSON_UNESCAPED_UNICODE);
             break;
+        }
+
+        if ($_POST['price'] !== '') {
+            $price = (float)$_POST['price'];
+        } else {
+            $prodRes = mysqli_query($conn, "SELECT price FROM products WHERE id=$productId LIMIT 1");
+            $prodRow = mysqli_fetch_assoc($prodRes);
+            $price = ($prodRow && $prodRow['price'] !== null) ? (float)$prodRow['price'] : 0;
         }
 
         $skuE = mysqli_real_escape_string($conn, $sku);
@@ -312,7 +319,6 @@ switch ($action) {
         $id            = (int)($_POST['id'] ?? 0);
         $sku           = trim($_POST['sku'] ?? '');
         $name          = trim($_POST['name'] ?? '');
-        $price         = $_POST['price'] !== '' ? (float)$_POST['price'] : 'NULL';
         $comparePrice  = $_POST['compare_price'] !== '' ? (float)$_POST['compare_price'] : 'NULL';
         $costPrice     = $_POST['cost_price'] !== '' ? (float)$_POST['cost_price'] : 'NULL';
         $stock         = (int)($_POST['stock'] ?? 0);
@@ -331,6 +337,14 @@ switch ($action) {
             break;
         }
 
+        if ($_POST['price'] !== '') {
+            $price = (float)$_POST['price'];
+        } else {
+            $cur = mysqli_query($conn, "SELECT price FROM product_variants WHERE id=$id LIMIT 1");
+            $curRow = mysqli_fetch_assoc($cur);
+            $price = ($curRow && $curRow['price'] !== null) ? (float)$curRow['price'] : 'NULL';
+        }
+
         $nE = mysqli_real_escape_string($conn, $name);
 
         $sql = "UPDATE product_variants SET
@@ -339,10 +353,6 @@ switch ($action) {
                 WHERE id=$id";
 
         if (mysqli_query($conn, $sql)) {
-            $vRes  = mysqli_query($conn, "SELECT product_id FROM product_variants WHERE id=$id LIMIT 1");
-            $vRow  = mysqli_fetch_assoc($vRes);
-            syncProductFromVariants($conn, (int)$vRow['product_id']);
-
             echo json_encode(['success' => true, 'message' => 'Variante actualizada correctamente'], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode(['success' => false, 'message' => 'Error al actualizar: ' . mysqli_error($conn)], JSON_UNESCAPED_UNICODE);

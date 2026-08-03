@@ -172,20 +172,13 @@ switch ($action) {
                 WHERE id=$id";
 
         if (mysqli_query($conn, $sql)) {
-            // Si el producto tiene variantes, sincronizar stock y precio desde ellas
-            $vCheck = mysqli_query($conn, "SELECT COUNT(*) AS cnt FROM product_variants WHERE product_id=$id AND is_active=1");
+            $vCheck = mysqli_query($conn, "SELECT COUNT(*) AS cnt FROM product_variants WHERE product_id=$id");
             $vRow   = mysqli_fetch_assoc($vCheck);
             if ((int)$vRow['cnt'] > 0) {
-                $sync = mysqli_query($conn, "
-                    SELECT COALESCE(SUM(stock), 0) AS total_stock,
-                           COALESCE(MIN(price), 0) AS min_price
-                    FROM product_variants
-                    WHERE product_id = $id AND is_active = 1
-                ");
+                $sync = mysqli_query($conn, "SELECT COALESCE(SUM(stock), 0) AS total_stock FROM product_variants WHERE product_id = $id AND is_active = 1");
                 $syncRow = mysqli_fetch_assoc($sync);
                 $totalStock = (int)$syncRow['total_stock'];
-                $minPrice   = (float)$syncRow['min_price'];
-                mysqli_query($conn, "UPDATE products SET stock=$totalStock, price=$minPrice WHERE id=$id");
+                mysqli_query($conn, "UPDATE products SET stock=$totalStock WHERE id=$id");
             }
             echo json_encode(['success' => true, 'message' => 'Producto actualizado correctamente'], JSON_UNESCAPED_UNICODE);
         } else {
