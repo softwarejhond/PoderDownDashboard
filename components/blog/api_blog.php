@@ -113,10 +113,33 @@ switch ($action) {
                 VALUES ('$t', '$sl', '$c', '$e', '$fi', '$st', '$au')";
 
         if (mysqli_query($conn, $sql)) {
+            $postId = mysqli_insert_id($conn);
+
+            $emailOk  = false;
+            $emailSent = 0;
+            $msg = 'Post creado correctamente';
+            if ($status === 'published') {
+                require_once __DIR__ . '/../newsletter.php';
+                $result = notify_newsletter_subscribers($conn, 'blog', [
+                    'title'          => $title,
+                    'slug'           => $slug,
+                    'excerpt'        => $excerpt,
+                    'featured_image' => $featured_image,
+                ]);
+                $emailOk   = $result['success'];
+                $emailSent = $result['sent'];
+                if ($emailOk && $emailSent > 0) {
+                    $msg .= ' y se notificó a ' . $emailSent . ' suscriptor(es)';
+                } elseif (!$emailOk) {
+                    $msg .= ', pero el correo de notificación falló';
+                }
+            }
+
             echo json_encode([
-                'success' => true,
-                'message' => 'Post creado correctamente',
-                'post_id' => mysqli_insert_id($conn),
+                'success'    => true,
+                'message'    => $msg,
+                'post_id'    => $postId,
+                'email_sent' => $emailSent,
             ], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode(['success' => false, 'message' => 'Error al crear: ' . mysqli_error($conn)], JSON_UNESCAPED_UNICODE);
@@ -142,6 +165,12 @@ switch ($action) {
 
         $content = absoluteImageUrls($content);
 
+        $oldStatus = 'draft';
+        $oldRes = mysqli_query($conn, "SELECT status FROM blog_posts WHERE id = $id LIMIT 1");
+        if ($oldRow = mysqli_fetch_assoc($oldRes)) {
+            $oldStatus = $oldRow['status'];
+        }
+
         $t      = mysqli_real_escape_string($conn, $title);
         $c      = mysqli_real_escape_string($conn, $content);
         $e      = mysqli_real_escape_string($conn, $excerpt);
@@ -157,7 +186,31 @@ switch ($action) {
                 WHERE id = $id";
 
         if (mysqli_query($conn, $sql)) {
-            echo json_encode(['success' => true, 'message' => 'Post actualizado correctamente'], JSON_UNESCAPED_UNICODE);
+            $emailOk  = false;
+            $emailSent = 0;
+            $msg = 'Post actualizado correctamente';
+            if ($status === 'published' && $oldStatus !== 'published') {
+                require_once __DIR__ . '/../newsletter.php';
+                $result = notify_newsletter_subscribers($conn, 'blog', [
+                    'title'          => $title,
+                    'slug'           => $slug,
+                    'excerpt'        => $excerpt,
+                    'featured_image' => $featured_image,
+                ]);
+                $emailOk   = $result['success'];
+                $emailSent = $result['sent'];
+                if ($emailOk && $emailSent > 0) {
+                    $msg .= ' y se notificó a ' . $emailSent . ' suscriptor(es)';
+                } elseif (!$emailOk) {
+                    $msg .= ', pero el correo de notificación falló';
+                }
+            }
+
+            echo json_encode([
+                'success'    => true,
+                'message'    => $msg,
+                'email_sent' => $emailSent,
+            ], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode(['success' => false, 'message' => 'Error al actualizar: ' . mysqli_error($conn)], JSON_UNESCAPED_UNICODE);
         }

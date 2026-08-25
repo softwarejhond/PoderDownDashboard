@@ -103,11 +103,34 @@ switch ($action) {
                 VALUES ('$t', '$sl', '$e', '', '$au', '$st')";
 
         if (mysqli_query($conn, $sql)) {
+            $galeriaId = mysqli_insert_id($conn);
+
+            $emailOk  = false;
+            $emailSent = 0;
+            $msg = 'Galería creada correctamente';
+            if ($status === 'published') {
+                require_once __DIR__ . '/../newsletter.php';
+                $result = notify_newsletter_subscribers($conn, 'galeria', [
+                    'title'          => $title,
+                    'slug'           => $slug,
+                    'excerpt'        => $excerpt,
+                    'featured_image' => '',
+                ]);
+                $emailOk   = $result['success'];
+                $emailSent = $result['sent'];
+                if ($emailOk && $emailSent > 0) {
+                    $msg .= ' y se notificó a ' . $emailSent . ' suscriptor(es)';
+                } elseif (!$emailOk) {
+                    $msg .= ', pero el correo de notificación falló';
+                }
+            }
+
             echo json_encode([
                 'success'    => true,
-                'message'    => 'Galería creada correctamente',
-                'galeria_id' => mysqli_insert_id($conn),
+                'message'    => $msg,
+                'galeria_id' => $galeriaId,
                 'slug'       => $slug,
+                'email_sent' => $emailSent,
             ], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode(['success' => false, 'message' => 'Error al crear: ' . mysqli_error($conn)], JSON_UNESCAPED_UNICODE);
@@ -132,6 +155,13 @@ switch ($action) {
         }
 
         $slug = uniqueSlug($conn, 'galerias', slugify($title), $id);
+
+        $oldStatus = 'draft';
+        $oldRes = mysqli_query($conn, "SELECT status FROM galerias WHERE id = $id LIMIT 1");
+        if ($oldRow = mysqli_fetch_assoc($oldRes)) {
+            $oldStatus = $oldRow['status'];
+        }
+
         $t    = mysqli_real_escape_string($conn, $title);
         $sl   = mysqli_real_escape_string($conn, $slug);
         $e    = mysqli_real_escape_string($conn, $excerpt);
@@ -145,7 +175,32 @@ switch ($action) {
                 WHERE id = $id";
 
         if (mysqli_query($conn, $sql)) {
-            echo json_encode(['success' => true, 'message' => 'Galería actualizada correctamente', 'slug' => $slug], JSON_UNESCAPED_UNICODE);
+            $emailOk  = false;
+            $emailSent = 0;
+            $msg = 'Galería actualizada correctamente';
+            if ($status === 'published' && $oldStatus !== 'published') {
+                require_once __DIR__ . '/../newsletter.php';
+                $result = notify_newsletter_subscribers($conn, 'galeria', [
+                    'title'          => $title,
+                    'slug'           => $slug,
+                    'excerpt'        => $excerpt,
+                    'featured_image' => '',
+                ]);
+                $emailOk   = $result['success'];
+                $emailSent = $result['sent'];
+                if ($emailOk && $emailSent > 0) {
+                    $msg .= ' y se notificó a ' . $emailSent . ' suscriptor(es)';
+                } elseif (!$emailOk) {
+                    $msg .= ', pero el correo de notificación falló';
+                }
+            }
+
+            echo json_encode([
+                'success'    => true,
+                'message'    => $msg,
+                'slug'       => $slug,
+                'email_sent' => $emailSent,
+            ], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode(['success' => false, 'message' => 'Error al actualizar: ' . mysqli_error($conn)], JSON_UNESCAPED_UNICODE);
         }
